@@ -1,7 +1,9 @@
+import { MonthlyCalendar } from "./MonthlyCalendar";
+
 export const SidebarLeft = () => {
     return (
       <div className="sidebar-left">
-        <span>Sidebar Left</span>
+          <MonthlyCalendar /> 
       </div>
     );
 }
