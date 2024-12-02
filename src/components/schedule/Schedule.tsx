@@ -5,20 +5,23 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import listPlugin from '@fullcalendar/list';
 import interactionPlugin, { DateClickArg, EventResizeDoneArg } from '@fullcalendar/interaction';
 import { EventClickArg, EventDropArg } from '@fullcalendar/core';
-import { ModalPopup } from '../Modal';
-
-type Event = { id: string, title: string, date: string, start: string, end: string };
+import { ModalPopupCreate } from '../modals/ModalCreate';
+import { ModalPopupEdit } from '../modals/ModalEdit';
+import { InfoEvent } from '../../types';
+import { Event } from '../../types';
 
 const saveEvents = (events: Event[]) => {
     localStorage.setItem("events", JSON.stringify(events));
 }
 
 export const Schedule = () => {
-    let eventsFromLS = localStorage.getItem("events");
+    const eventsFromLS = localStorage.getItem("events");
+
     const [events, setEvents] = useState<Event[]>(eventsFromLS ? JSON.parse(eventsFromLS) : []);
-    
     const [open, setOpen] = useState(false);
+	const [edit, setEdit] = useState(false);
     const [selectedDate, setSelectedDate] = useState('');
+	const [infoEvent, setInfoEvent] = useState<InfoEvent>();
 
     const handleEventDrop = (info: EventDropArg) => {
         const updatedEvents = events.map((event) => {
@@ -34,7 +37,7 @@ export const Schedule = () => {
                         date: startDate.split('T')[0]
                     };
                 } else {
-					console.log("ERROR");//method error
+					console.log("ERROR");
 				}
             }
             return event;
@@ -44,27 +47,11 @@ export const Schedule = () => {
         setEvents(updatedEvents);
     }
 
-    const handleEventClick = (info: EventClickArg) => {
-        const eventId = info.event.id; 
-        const currentTitle = info.event.title;
-        const newTitle = prompt('new event title', currentTitle);
-    
-        if (newTitle) {
-            const updatedEvents = events.map((event) => {
-                if (event.id === eventId) {
-                    return {
-                        ...event,
-                        title: newTitle 
-                    };
-                }
-                return event;
-            });
-
-            saveEvents(updatedEvents);
-            setEvents(updatedEvents);
-        }
+    const handleEventClick = (info: EventClickArg) => {		
+		setEdit(true);
+		setInfoEvent(info.event);
     };
-
+		
     const handleEventResize = (info: EventResizeDoneArg) => {
         const updatedEvents = events.map((event) => {
             if (event.id === info.event.id) {
@@ -79,7 +66,7 @@ export const Schedule = () => {
                         date: startDate.split('T')[0]
                     };
 				} else {
-					console.log("ERROR");//method error
+					console.log("ERROR");
                 } 
             }
             return event;
@@ -96,25 +83,40 @@ export const Schedule = () => {
 
     const handleModalClose = () => {
         setOpen(false);
+		setEdit(false);
     };
 
-    const handleModalConfirm = (eventTitle: string, selectedDate: string) => {
-        const startDate = new Date(selectedDate); 
-        const endDate = new Date(startDate.getTime() + 30 * 60000);
-        const newEvent: Event = {
-            id: events.length.toString(),
-            title: eventTitle,
-            date: selectedDate,
-            start: startDate.toISOString(),
-            end: endDate.toISOString(),
-        };
-
-		const nextEvents = [...events, newEvent];
-
-        saveEvents(nextEvents);
-        setEvents(nextEvents);
-    };
-
+	const handleModalConfirm = (eventTitle: string) => {
+		let nextEvents: Event[]; 
+	
+		if (edit && infoEvent) {
+			nextEvents = events.map((event) => {
+				if (event.id === infoEvent.id) {
+					return {
+						...event,
+						title: eventTitle,
+					};
+				}
+				return event; 
+			});
+		} else {
+			const startDate = new Date(selectedDate);
+			const endDate = new Date(startDate.getTime() + 30 * 60000);
+			const newEvent: Event = {
+				id: (events.length + 1).toString(),
+				title: eventTitle,
+				date: selectedDate,
+				start: startDate.toISOString(),
+				end: endDate.toISOString(),
+			};
+	
+			nextEvents = [...events, newEvent]; 
+		}
+	
+		saveEvents(nextEvents);
+		setEvents(nextEvents);
+	};
+	
     return (
         <div className="schedule">
             <FullCalendar
@@ -140,12 +142,19 @@ export const Schedule = () => {
                 firstDay={1} 
             />
 
-            <ModalPopup 
-                open={open} 
-                onClose={handleModalClose} 
-                onConfirm={handleModalConfirm}
-                selectedDate={selectedDate} 
-            />
+			<ModalPopupCreate 
+				open={open} 
+				onClose={handleModalClose} 
+				onConfirm={handleModalConfirm}
+				infoEvent={infoEvent} 
+			/>
+
+			<ModalPopupEdit 
+				open={edit} 
+				onClose={handleModalClose} 
+				onConfirm={handleModalConfirm}
+				infoEvent={infoEvent}
+			/>
         </div>
     );
 };
