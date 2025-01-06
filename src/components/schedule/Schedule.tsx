@@ -8,43 +8,21 @@ import { EventClickArg, EventDropArg } from '@fullcalendar/core';
 import { ModalPopupCreate } from '../modals/ModalCreate';
 import { ModalPopupEdit } from '../modals/ModalEdit';
 import { InfoEvent } from '../../types';
-import { Event } from '../../types';
-
-const saveEvents = (events: Event[]) => {
-    localStorage.setItem("events", JSON.stringify(events));
-}
+import { useDispatch, useSelector } from 'react-redux';
+import { AppDispatch, RootState } from '../../redux/store';
+import { setEvent, dragAndDropEvent, resizeEvent, editEventTitle } from '../../redux/eventSlice';
 
 export const Schedule = () => {
-    const eventsFromLS = localStorage.getItem("events");
-
-    const [events, setEvents] = useState<Event[]>(eventsFromLS ? JSON.parse(eventsFromLS) : []);
+    const dispatch = useDispatch<AppDispatch>();
+	const eventsFromState = useSelector(({eventsState}: RootState) => eventsState.events);
+   
     const [open, setOpen] = useState(false);
 	const [edit, setEdit] = useState(false);
     const [selectedDate, setSelectedDate] = useState('');
 	const [infoEvent, setInfoEvent] = useState<InfoEvent>();
 
     const handleEventDrop = (info: EventDropArg) => {
-        const updatedEvents = events.map((event) => {
-            if (event.id === info.event.id) {
-                const startDate = info.event.start?.toISOString();
-                const endDate = info.event.end?.toISOString();
-
-                if (startDate && endDate) {
-                    return {
-                        ...event,
-                        start: startDate,
-                        end: endDate,
-                        date: startDate.split('T')[0]
-                    };
-                } else {
-					console.log("ERROR");
-				}
-            }
-            return event;
-        });
-
-        saveEvents(updatedEvents);
-        setEvents(updatedEvents);
+		dispatch(dragAndDropEvent(info));
     }
 
     const handleEventClick = (info: EventClickArg) => {		
@@ -53,27 +31,7 @@ export const Schedule = () => {
     };
 		
     const handleEventResize = (info: EventResizeDoneArg) => {
-        const updatedEvents = events.map((event) => {
-            if (event.id === info.event.id) {
-                const startDate = info.event.start?.toISOString();
-                const endDate = info.event.end?.toISOString();
-
-                if (startDate && endDate) {
-                    return {
-                        ...event,
-                        start: startDate,
-                        end: endDate,
-                        date: startDate.split('T')[0]
-                    };
-				} else {
-					console.log("ERROR");
-                } 
-            }
-            return event;
-        });
-    
-        saveEvents(updatedEvents);
-        setEvents(updatedEvents);
+        dispatch(resizeEvent(info));
     };
 
     const handleDateClick = (arg: DateClickArg) => { 
@@ -86,35 +44,14 @@ export const Schedule = () => {
 		setEdit(false);
     };
 
-	const handleModalConfirm = (eventTitle: string) => {
-		let nextEvents: Event[]; 
-	
-		if (edit && infoEvent) {
-			nextEvents = events.map((event) => {
-				if (event.id === infoEvent.id) {
-					return {
-						...event,
-						title: eventTitle,
-					};
-				}
-				return event; 
-			});
-		} else {
-			const startDate = new Date(selectedDate);
-			const endDate = new Date(startDate.getTime() + 30 * 60000);
-			const newEvent: Event = {
-				id: (events.length + 1).toString(),
-				title: eventTitle,
-				date: selectedDate,
-				start: startDate.toISOString(),
-				end: endDate.toISOString(),
-			};
-	
-			nextEvents = [...events, newEvent]; 
-		}
-	
-		saveEvents(nextEvents);
-		setEvents(nextEvents);
+	const handleModalCreateConfirm = (eventTitle: string) => {
+		dispatch(setEvent({ title: eventTitle, startDate: selectedDate }));
+	};
+
+	const handleModalEditConfirm = (eventTitle: string) => {
+		if (infoEvent) {
+            dispatch(editEventTitle({title: eventTitle, event: infoEvent}));
+        } 
 	};
 	
     return (
@@ -127,7 +64,7 @@ export const Schedule = () => {
                     center: 'title',
                     right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek', 
                 }}
-                events={events} 
+                events={eventsFromState} 
                 dateClick={handleDateClick} 
                 eventDrop={handleEventDrop}
                 eventClick={handleEventClick}
@@ -145,14 +82,14 @@ export const Schedule = () => {
 			<ModalPopupCreate 
 				open={open} 
 				onClose={handleModalClose} 
-				onConfirm={handleModalConfirm}
+				onConfirm={handleModalCreateConfirm}
 				infoEvent={infoEvent} 
 			/>
 
 			<ModalPopupEdit 
 				open={edit} 
 				onClose={handleModalClose} 
-				onConfirm={handleModalConfirm}
+				onConfirm={handleModalEditConfirm}
 				infoEvent={infoEvent}
 			/>
         </div>

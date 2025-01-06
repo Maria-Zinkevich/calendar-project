@@ -1,6 +1,4 @@
-// types.ts
-
-export type Event = { id: string; title: string; date?: string; start: string; end: string; };
+export type Event = { id: string; title: string; date?: string; start?: string; end?: string; };
 export type InfoEvent = Pick<Event, 'id' | 'title'>;
 
 export interface ModalPopupProps {
